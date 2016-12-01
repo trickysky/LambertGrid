@@ -18,40 +18,53 @@ original_x = -1 * R * pi
 original_y = R * pi
 
 
-def LonLat2WebMercator(longitude, latitude):
-	x = R * longitude * pi / 180
-	y = R * math.log(math.tan(pi / 4 + latitude * pi / 360))
-	return x, y
+class Point():
+	def __init__(self, x, y, srid):
+		self.x = x
+		self.y = y
+		self.srid = srid
 
 
-def WebMercator2LonLat(x, y):
-	longitude = float(x) / R * 180 / pi
-	latitude = 360 * math.atan(e ** (y / R)) / pi - 90
-	return longitude, latitude
+	def LonLat2WebMercator(self):
+		if 4326 == self.srid:
+			self.x = R * self.x * pi / 180
+			self.y = R * math.log(math.tan(pi / 4 + self.y * pi / 360))
+			self.srid = 3857
+		else:
+			print 'srid error'
 
 
-def LonLat2Mercator(longitude, latitude):
-	x = K * longitude * pi / 180
-	y = K * math.log(math.tan(pi / 4 + latitude * pi / 360) * (
-	(1 - e1 * math.sin(latitude * pi / 180)) / (1 + e1 * math.sin(latitude * pi / 180))) ** (e1 / 2))
-	return x, y
+	def WebMercator2LonLat(self):
+		if 3857 == self.srid:
+			self.x = float(self.x) / R * 180 / pi
+			self.y = 360 * math.atan(e ** (self.y / R)) / pi - 90
+			self.srid = 4326
+		else:
+			print 'srid error'
 
 
-def WebMercator2TileId(x, y, level):
-	tile_x = math.floor((x - original_x)/(R * pi)*2**(level-1))
-	tile_y = math.floor(abs((y - original_y))/(R * pi)*2**(level-1))
-	return int(tile_x), int(tile_y)
+	def LonLat2Mercator(self):
+		if 4326 == self.srid:
+			self.x = K * self.x * pi / 180
+			self.y = K * math.log(math.tan(pi / 4 + self.y * pi / 360) * ((1 - e1 * math.sin(self.y * pi / 180)) / (1 + e1 * math.sin(self.y * pi / 180))) ** (e1 / 2))
+			self.srid = 3395
+		else:
+			print 'srid error'
 
 
-def DrawTile(tile_x, tile_y, level):
+
+def WebMercator2TileId(point, level):
+	if 3857 == point.srid:
+		tile_x = math.floor((point.x - original_x)/(R * pi)*2**(level-1))
+		tile_y = math.floor(abs((point.y - original_y))/(R * pi)*2**(level-1))
+		return int(tile_x), int(tile_y)
+
+
+def DrawMapTileGrid(tile_x, tile_y, level):
 	min_x = R * pi / 2**(level-1) * tile_x + original_x
 	max_x = R * pi / 2**(level-1) * (tile_x + 1) + original_x
 	min_y = original_y - R * pi / 2**(level-1) * (tile_y + 1)
 	max_y = original_y - R * pi / 2**(level-1) * tile_y
 	print min_x, min_y
 	print max_x, max_y
-	print WebMercator2LonLat(min_x, min_y)
-	print WebMercator2LonLat(max_x, max_y)
 
-x, y = LonLat2WebMercator(116.397458, 39.908709)
-DrawTile(13489, 6208, 14)
