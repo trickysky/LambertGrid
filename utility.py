@@ -66,15 +66,9 @@ class Point:
 		if 4326 == self.srid:
 			tile_x = math.floor((self.x + 180.0) / 180.0 * 2.0 ** (level - 1))
 			tile_y = math.floor((1.0-math.sin(self.y*pi/180.0)) * 2.0 ** (level - 1))
-			return tile_x, tile_y
+			return int(tile_x), int(tile_y)
 		else:
 			print 'srid error'
-
-
-t_p = Point(116, -31, 4326)
-level = 3
-print t_p.LonLat2LambertTile(level)
-print t_p.LonLat2WebMercator().WebMercator2TileId(level)
 
 
 def draw_map_tile_grid(tile_x, tile_y, level):
@@ -83,6 +77,22 @@ def draw_map_tile_grid(tile_x, tile_y, level):
 	min_y = original_y - R * pi / 2 ** (level - 1) * (tile_y + 1)
 	max_y = original_y - R * pi / 2 ** (level - 1) * tile_y
 	return Point(min_x, min_y, 3857), Point(max_x, max_y, 3857)
+
+
+def draw_lambert_grid(tile_x, tile_y, level):
+	min_x = 360.0 / 2**level * tile_x -180.0
+	max_x = 360.0 / 2**level * (tile_x + 1) -180.0
+	min_y = math.asin(1 - (1.0 / 2**(level - 1)) * (tile_y + 1)) * 180.0 / pi
+	max_y = math.asin(1 - (1.0 / 2**(level - 1)) * tile_y) * 180.0 / pi
+	return Point(min_x, min_y, 4326), Point(max_x, max_y, 4326)
+
+# t_p = Point(116, 31, 4326)
+# level = 19
+# tile_x, tile_y = t_p.LonLat2LambertTile(level)
+# print tile_x, tile_y
+# p1, p2 = draw_lambert_grid(tile_x, tile_y, level)
+# print p1.x, p1.y
+# print p2.x, p2.y
 
 
 def make_square(point1, point2):
