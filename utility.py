@@ -123,7 +123,7 @@ china_min = Point(73.50235488, 18.14259204, 4326)
 china_max = Point(135.09567, 53.56362402, 4326)
 
 
-def create_tile_grids(level, db):
+def create_map_tile_grids(level, db):
 	db = Database(db)
 	sql_create_tmp = """CREATE TABLE public.creat_tile_grids_tmp (geom GEOMETRY, tile_x INTEGER, tile_y INTEGER);"""
 	db.execute(sql_create_tmp)
