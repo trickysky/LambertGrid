@@ -102,7 +102,7 @@ def make_square(point1, point2):
 		return sql_geom
 
 
-def make_square_grids(point1, point2, level):
+def calc_map_tile_grids(point1, point2, level):
 	if point1.srid == point2.srid:
 		min_x = min(point1.x, point2.x)
 		max_x = max(point1.x, point2.x)
@@ -127,7 +127,7 @@ def create_tile_grids(level, db):
 	db = Database(db)
 	sql_create_tmp = """CREATE TABLE public.creat_tile_grids_tmp (geom GEOMETRY, tile_x INTEGER, tile_y INTEGER);"""
 	db.execute(sql_create_tmp)
-	tiles = make_square_grids(china_min, china_max, level)
+	tiles = calc_map_tile_grids(china_min, china_max, level)
 	sqls = []
 	for tile in tiles:
 		p_min, p_max = get_map_tile_grid_point(tile[0], tile[1], level)
