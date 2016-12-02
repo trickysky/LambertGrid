@@ -12,10 +12,10 @@ b = 6356752.314245
 pi = math.pi
 e = math.e
 
-e1 = (1 - (b / a) ** 2) ** 0.5
-e2 = ((a / b) ** 2 - 1) ** 0.5
-K = (a ** 2 / b) / (1 + e2 ** 2) ** 0.5
-original_x = -1 * R * pi
+e1 = (1.0 - (b / a) ** 2.0) ** 0.5
+e2 = ((a / b) ** 2.0 - 1.0) ** 0.5
+K = (a ** 2.0 / b) / (1.0 + e2 ** 2.0) ** 0.5
+original_x = -1.0 * R * pi
 original_y = R * pi
 
 
@@ -27,8 +27,8 @@ class Point:
 
 	def LonLat2WebMercator(self):
 		if 4326 == self.srid:
-			self.x = R * self.x * pi / 180
-			self.y = R * math.log(math.tan(pi / 4 + self.y * pi / 360))
+			self.x = R * self.x * pi / 180.0
+			self.y = R * math.log(math.tan(pi / 4 + self.y * pi / 360.0))
 			self.srid = 3857
 			return self
 		else:
@@ -36,8 +36,8 @@ class Point:
 
 	def WebMercator2LonLat(self):
 		if 3857 == self.srid:
-			self.x = float(self.x) / R * 180 / pi
-			self.y = 360 * math.atan(e ** (self.y / R)) / pi - 90
+			self.x = float(self.x) / R * 180.0 / pi
+			self.y = 360.0 * math.atan(e ** (self.y / R)) / pi - 90.0
 			self.srid = 4326
 			return self
 		else:
@@ -45,9 +45,9 @@ class Point:
 
 	def LonLat2Mercator(self):
 		if 4326 == self.srid:
-			self.x = K * self.x * pi / 180
-			self.y = K * math.log(math.tan(pi / 4 + self.y * pi / 360) * (
-			(1 - e1 * math.sin(self.y * pi / 180)) / (1 + e1 * math.sin(self.y * pi / 180))) ** (e1 / 2))
+			self.x = K * self.x * pi / 180.0
+			self.y = K * math.log(math.tan(pi / 4 + self.y * pi / 360.0) * (
+			(1 - e1 * math.sin(self.y * pi / 180.0)) / (1 + e1 * math.sin(self.y * pi / 180.0))) ** (e1 / 2.0))
 			self.srid = 3395
 			return self
 		else:
@@ -55,11 +55,26 @@ class Point:
 
 	def WebMercator2TileId(self, level):
 		if 3857 == self.srid:
-			tile_x = math.floor((self.x - original_x) / (R * pi) * 2 ** (level - 1))
-			tile_y = math.floor(abs((self.y - original_y)) / (R * pi) * 2 ** (level - 1))
+			tile_x = math.floor((self.x - original_x) / (R * pi) * 2.0 ** (level - 1))
+			tile_y = math.floor(abs((self.y - original_y)) / (R * pi) * 2.0 ** (level - 1))
 			return int(tile_x), int(tile_y)
 		else:
 			print 'srid error'
+
+
+	def LonLat2LambertTile(self, level):
+		if 4326 == self.srid:
+			tile_x = math.floor((self.x + 180.0) / 180.0 * 2.0 ** (level - 1))
+			tile_y = math.floor((1.0-math.sin(self.y*pi/180.0)) * 2.0 ** (level - 1))
+			return tile_x, tile_y
+		else:
+			print 'srid error'
+
+
+t_p = Point(116, -31, 4326)
+level = 3
+print t_p.LonLat2LambertTile(level)
+print t_p.LonLat2WebMercator().WebMercator2TileId(level)
 
 
 def draw_map_tile_grid(tile_x, tile_y, level):
