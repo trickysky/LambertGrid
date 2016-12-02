@@ -71,7 +71,7 @@ class Point:
 			print 'srid error'
 
 
-def draw_map_tile_grid(tile_x, tile_y, level):
+def get_map_tile_grid_point(tile_x, tile_y, level):
 	min_x = R * pi / 2 ** (level - 1) * tile_x + original_x
 	max_x = R * pi / 2 ** (level - 1) * (tile_x + 1) + original_x
 	min_y = original_y - R * pi / 2 ** (level - 1) * (tile_y + 1)
@@ -79,20 +79,12 @@ def draw_map_tile_grid(tile_x, tile_y, level):
 	return Point(min_x, min_y, 3857), Point(max_x, max_y, 3857)
 
 
-def draw_lambert_grid(tile_x, tile_y, level):
+def get_lambert_grid_point(tile_x, tile_y, level):
 	min_x = 360.0 / 2**level * tile_x -180.0
 	max_x = 360.0 / 2**level * (tile_x + 1) -180.0
 	min_y = math.asin(1 - (1.0 / 2**(level - 1)) * (tile_y + 1)) * 180.0 / pi
 	max_y = math.asin(1 - (1.0 / 2**(level - 1)) * tile_y) * 180.0 / pi
 	return Point(min_x, min_y, 4326), Point(max_x, max_y, 4326)
-
-# t_p = Point(116, 31, 4326)
-# level = 19
-# tile_x, tile_y = t_p.LonLat2LambertTile(level)
-# print tile_x, tile_y
-# p1, p2 = draw_lambert_grid(tile_x, tile_y, level)
-# print p1.x, p1.y
-# print p2.x, p2.y
 
 
 def make_square(point1, point2):
@@ -138,7 +130,7 @@ def create_tile_grids(level, db):
 	tiles = make_square_grids(china_min, china_max, level)
 	sqls = []
 	for tile in tiles:
-		p_min, p_max = draw_map_tile_grid(tile[0], tile[1], level)
+		p_min, p_max = get_map_tile_grid_point(tile[0], tile[1], level)
 		sql = """INSERT INTO public.creat_tile_grids_tmp (%s, %s, %s) VALUES (%s, %s, %s);""" % ('geom', 'tile_x', 'tile_y', make_square(p_min, p_max), tile[0], tile[1])
 		print sql
 		sqls.append(sql)
