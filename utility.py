@@ -47,7 +47,7 @@ class Point:
 		if 4326 == self.srid:
 			self.x = K * self.x * pi / 180.0
 			self.y = K * math.log(math.tan(pi / 4 + self.y * pi / 360.0) * (
-			(1 - e1 * math.sin(self.y * pi / 180.0)) / (1 + e1 * math.sin(self.y * pi / 180.0))) ** (e1 / 2.0))
+				(1 - e1 * math.sin(self.y * pi / 180.0)) / (1 + e1 * math.sin(self.y * pi / 180.0))) ** (e1 / 2.0))
 			self.srid = 3395
 			return self
 		else:
@@ -61,11 +61,10 @@ class Point:
 		else:
 			print 'srid error'
 
-
 	def LonLat2LambertTile(self, level):
 		if 4326 == self.srid:
 			tile_x = math.floor((self.x + 180.0) / 180.0 * 2.0 ** (level - 1))
-			tile_y = math.floor((1.0-math.sin(self.y*pi/180.0)) * 2.0 ** (level - 1))
+			tile_y = math.floor((1.0 - math.sin(self.y * pi / 180.0)) * 2.0 ** (level - 1))
 			return int(tile_x), int(tile_y)
 		else:
 			print 'srid error'
@@ -80,10 +79,10 @@ def get_map_tile_grid_point(tile_x, tile_y, level):
 
 
 def get_lambert_grid_point(tile_x, tile_y, level):
-	min_x = 360.0 / 2**level * tile_x -180.0
-	max_x = 360.0 / 2**level * (tile_x + 1) -180.0
-	min_y = math.asin(1 - (1.0 / 2**(level - 1)) * (tile_y + 1)) * 180.0 / pi
-	max_y = math.asin(1 - (1.0 / 2**(level - 1)) * tile_y) * 180.0 / pi
+	min_x = 360.0 / 2 ** level * tile_x - 180.0
+	max_x = 360.0 / 2 ** level * (tile_x + 1) - 180.0
+	min_y = math.asin(1 - (1.0 / 2 ** (level - 1)) * (tile_y + 1)) * 180.0 / pi
+	max_y = math.asin(1 - (1.0 / 2 ** (level - 1)) * tile_y) * 180.0 / pi
 	return Point(min_x, min_y, 4326), Point(max_x, max_y, 4326)
 
 
@@ -113,8 +112,25 @@ def calc_map_tile_grids(point1, point2, level):
 		globe_max = Point(max_x, min_y, 3857) if 3857 == point1.srid else Point(max_x, min_y, 4326).LonLat2WebMercator()
 		tile_x_max, tile_y_max = globe_max.WebMercator2TileId(level)
 		tiles = []
-		for tile_x in range(tile_x_min, tile_x_max+1, 1):
-			for tile_y in range(tile_y_min, tile_y_max+1, 1):
+		for tile_x in range(tile_x_min, tile_x_max + 1, 1):
+			for tile_y in range(tile_y_min, tile_y_max + 1, 1):
+				tiles.append((tile_x, tile_y))
+		return tiles
+
+
+def calc_lambert_grids(point1, point2, level):
+	if point1.srid == point2.srid:
+		min_x = min(point1.x, point2.x)
+		max_x = max(point1.x, point2.x)
+		min_y = min(point1.y, point2.y)
+		max_y = max(point1.y, point2.y)
+		globe_min = Point(min_x, max_y, 4326) if 4326 == point1.srid else Point(min_x, max_y, 3857).LonLat2WebMercator()
+		tile_x_min, tile_y_min = globe_min.LonLat2LambertTile(level)
+		globe_max = Point(max_x, min_y, 4326) if 4326 == point1.srid else Point(max_x, min_y, 3857).LonLat2WebMercator()
+		tile_x_max, tile_y_max = globe_max.LonLat2LambertTile(level)
+		tiles = []
+		for tile_x in range(tile_x_min, tile_x_max + 1, 1):
+			for tile_y in range(tile_y_min, tile_y_max + 1, 1):
 				tiles.append((tile_x, tile_y))
 		return tiles
 
@@ -131,12 +147,37 @@ def create_map_tile_grids(level, db):
 	sqls = []
 	for tile in tiles:
 		p_min, p_max = get_map_tile_grid_point(tile[0], tile[1], level)
-		sql = """INSERT INTO public.creat_tile_grids_tmp (%s, %s, %s) VALUES (%s, %s, %s);""" % ('geom', 'tile_x', 'tile_y', make_square(p_min, p_max), tile[0], tile[1])
+		sql = """INSERT INTO public.creat_tile_grids_tmp (%s, %s, %s) VALUES (st_transform(%s, 4326), %s, %s);""" % (
+		'geom', 'tile_x', 'tile_y', make_square(p_min, p_max), tile[0], tile[1])
 		print sql
 		sqls.append(sql)
 	db.execute(''.join(sqls))
-	valid_grid_sql = """SELECT t1.geom, tile_x, tile_y INTO working.grid_%s FROM public.creat_tile_grids_tmp AS t1, working.china AS t2 WHERE st_intersects(t1.geom, t2.geom) IS TRUE;""" % level
+	valid_grid_sql = """SELECT t1.geom, tile_x, tile_y INTO working.map_tile_grid_%s FROM public.creat_tile_grids_tmp AS t1, working.china AS t2 WHERE st_intersects(t1.geom, t2.geom) IS TRUE;""" % level
 	db.execute(valid_grid_sql)
 	truncate_sql = """DROP TABLE public.creat_tile_grids_tmp;"""
 	db.execute(truncate_sql)
 
+
+def create_lambert_grids(level, db):
+	db = Database(db)
+	sql_create_tmp = """CREATE TABLE public.creat_tile_grids_tmp (geom GEOMETRY, tile_x INTEGER, tile_y INTEGER);"""
+	db.execute(sql_create_tmp)
+	tiles = calc_lambert_grids(china_min, china_max, level)
+	sqls = []
+	for tile in tiles:
+		p_min, p_max = get_lambert_grid_point(tile[0], tile[1], level)
+		sql = """INSERT INTO public.creat_tile_grids_tmp (%s, %s, %s) VALUES (%s, %s, %s);""" % (
+		'geom', 'tile_x', 'tile_y', make_square(p_min, p_max), tile[0], tile[1])
+		print sql
+		sqls.append(sql)
+	db.execute(''.join(sqls))
+	valid_grid_sql = """SELECT t1.geom, tile_x, tile_y INTO working.lambert_grid_%s FROM public.creat_tile_grids_tmp AS t1, working.china AS t2 WHERE st_intersects(t1.geom, t2.geom) IS TRUE;""" % level
+	db.execute(valid_grid_sql)
+	truncate_sql = """DROP TABLE public.creat_tile_grids_tmp;"""
+	db.execute(truncate_sql)
+
+
+if '__main__' == __name__:
+	for i in range(6, 10, 1):
+		create_map_tile_grids(i, 'mydb')
+		create_lambert_grids(i, 'mydb')
