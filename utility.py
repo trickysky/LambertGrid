@@ -26,7 +26,9 @@ class Point:
 		self.srid = srid
 
 	def LonLat2WebMercator(self):
-		if 4326 == self.srid:
+		if 3857 == self.srid:
+			return self
+		elif 4326 == self.srid:
 			self.x = R * self.x * pi / 180.0
 			self.y = R * math.log(math.tan(pi / 4 + self.y * pi / 360.0))
 			self.srid = 3857
@@ -35,7 +37,9 @@ class Point:
 			print 'srid error'
 
 	def WebMercator2LonLat(self):
-		if 3857 == self.srid:
+		if 4326 == self.srid:
+			return self
+		elif 3857 == self.srid:
 			self.x = float(self.x) / R * 180.0 / pi
 			self.y = 360.0 * math.atan(e ** (self.y / R)) / pi - 90.0
 			self.srid = 4326
@@ -44,7 +48,9 @@ class Point:
 			print 'srid error'
 
 	def LonLat2Mercator(self):
-		if 4326 == self.srid:
+		if 3395 == self.srid:
+			return self
+		elif 4326 == self.srid:
 			self.x = K * self.x * pi / 180.0
 			self.y = K * math.log(math.tan(pi / 4 + self.y * pi / 360.0) * (
 				(1 - e1 * math.sin(self.y * pi / 180.0)) / (1 + e1 * math.sin(self.y * pi / 180.0))) ** (e1 / 2.0))
@@ -137,6 +143,8 @@ def calc_lambert_grids(point1, point2, level):
 
 china_min = Point(73.50235488, 18.14259204, 4326)
 china_max = Point(135.09567, 53.56362402, 4326)
+china_top = Point(123.28040484, 53.56362402, 4326)
+china_bottom = Point(109.57241088, 18.14259204, 4326)
 
 
 def create_map_tile_grids(level, db):
@@ -178,6 +186,30 @@ def create_lambert_grids(level, db):
 
 
 if '__main__' == __name__:
-	for i in range(6, 10, 1):
-		create_map_tile_grids(i, 'mydb')
-		create_lambert_grids(i, 'mydb')
+	db = Database('mydb')
+	db.execute("""TRUNCATE TABLE working.calc_max_min_grid CONTINUE IDENTITY RESTRICT;""")
+	for level in range(4, 20, 1):
+		china_top.WebMercator2LonLat()
+		tile_x, tile_y = china_top.LonLat2LambertTile(level)
+		p1, p2 = get_lambert_grid_point(tile_x, tile_y, level)
+		sql = """INSERT INTO working.calc_max_min_grid (level, remark, type, area, geom) VALUES (%s, 'lambert', 'max', NULL, %s);""" % (level, make_square(p1, p2))
+		db.execute(sql)
+		china_bottom.WebMercator2LonLat()
+		tile_x, tile_y = china_bottom.LonLat2LambertTile(level)
+		p1, p2 = get_lambert_grid_point(tile_x, tile_y, level)
+		sql = """INSERT INTO working.calc_max_min_grid (level, remark, type, area, geom) VALUES (%s, 'lambert', 'min', NULL, %s);""" % (level, make_square(p1, p2))
+		db.execute(sql)
+		china_top.LonLat2WebMercator()
+		tile_x, tile_y = china_top.WebMercator2TileId(level)
+		p1, p2 = get_map_tile_grid_point(tile_x, tile_y, level)
+		sql = """INSERT INTO working.calc_max_min_grid (level, remark, type, area, geom) VALUES (%s, 'map_tile', 'max', NULL, st_transform(%s, 4326));""" % (level, make_square(p1, p2))
+		db.execute(sql)
+		china_bottom.LonLat2WebMercator()
+		tile_x, tile_y = china_bottom.WebMercator2TileId(level)
+		p1, p2 = get_map_tile_grid_point(tile_x, tile_y, level)
+		sql = """INSERT INTO working.calc_max_min_grid (level, remark, type, area, geom) VALUES (%s, 'map_tile', 'min', NULL, st_transform(%s, 4326));""" % (level, make_square(p1, p2))
+		db.execute(sql)
+
+
+
+
